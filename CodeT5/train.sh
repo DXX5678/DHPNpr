@@ -3,7 +3,7 @@ lr=5e-5
 batch_size=16 #32
 beam_size=5
 max_source_length=512
-max_target_length=512
+max_target_length=256
 epoch=30
 
 
