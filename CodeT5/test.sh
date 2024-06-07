@@ -16,7 +16,6 @@ train_file=/home/dxx/DHPNpr/data/Train
 validate_file=/home/dxx/DHPNpr/data/Valid
 model_name_or_path=/home/dxx/DHPNpr/CodeT5/codet5-base
 tokenizer_name=/home/dxx/DHPNpr/CodeT5/codet5-base
-cache_path=$output_dir/cache_data
 log_file_dir=/home/dxx/DHPNpr/logging
 pl=java
 
@@ -39,7 +38,7 @@ python ./run.py \
 --learning_rate $lr \
 --num_train_epochs $epoch \
 --summary_dir $summary_dir \
---cache_path $cache_path \
+--cache_path "" \
 --log_file_dir $log_file_dir \
 --res_dir $res_dir \
 --task refine \

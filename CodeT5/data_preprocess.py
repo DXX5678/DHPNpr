@@ -177,7 +177,7 @@ def load_and_cache_gen_data(args, dir, pool, tokenizer, split_tag, mode="train",
     # return: examples (Example object), data (TensorDataset)
     data_tag = '_all' if args.data_num == -1 else '_%d' % args.data_num
     cache_fn = '{}/{}.pt'.format(args.cache_path, split_tag + ('_src' if only_src else '') + data_tag)
-
+    cache_flag = True
     examples = prepare_examples_dir(dir, mode)
 
     if is_sample:
@@ -199,10 +199,11 @@ def load_and_cache_gen_data(args, dir, pool, tokenizer, split_tag, mode="train",
         all_source_ids = torch.tensor([f.source_ids for f in features], dtype=torch.long)
         if split_tag == 'test' or only_src:
             data = TensorDataset(all_source_ids)
+            cache_flag = False
         else:
             all_target_ids = torch.tensor([f.target_ids for f in features], dtype=torch.long)
             data = TensorDataset(all_source_ids, all_target_ids)
-        if args.local_rank in [-1, 0] and not is_sample:
+        if args.local_rank in [-1, 0] and not is_sample and cache_flag:
             torch.save(data, cache_fn)
     return examples, data
 
@@ -250,7 +251,7 @@ def load_and_cache_gen_test_data(args, dir, pool, tokenizer, split_tag, only_src
     # return: examples (Example object), data (TensorDataset)
     data_tag = '_all' if args.data_num == -1 else '_%d' % args.data_num
     cache_fn = '{}/{}.pt'.format(args.cache_path, split_tag + ('_src' if only_src else '') + data_tag)
-
+    cache_flag = False
     examples = read_test_examples(dir, args)
 
     if os.path.exists(cache_fn) and not is_sample:
@@ -265,6 +266,6 @@ def load_and_cache_gen_test_data(args, dir, pool, tokenizer, split_tag, only_src
         features = pool.map(convert_examples_to_features, tqdm(tuple_examples, total=len(tuple_examples)))
         all_source_ids = torch.tensor([f.source_ids for f in features], dtype=torch.long)
         data = TensorDataset(all_source_ids)
-        if args.local_rank in [-1, 0] and not is_sample:
+        if args.local_rank in [-1, 0] and not is_sample and cache_flag:
             torch.save(data, cache_fn)
     return examples, data
