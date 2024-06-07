@@ -211,7 +211,7 @@ def load_and_cache_gen_data(args, dir, pool, tokenizer, split_tag, mode="train",
 def read_test_examples(filename, args):
     examples = []
     idx = 0
-    ab_buggy_lines = list(map(int, args.buggy_line.split()))
+    ab_buggy_lines = list(map(int, args.buggy_line.split(",")))
     buggy_method = readLines(filename)
     input = []
     if len(ab_buggy_lines) == 1:
