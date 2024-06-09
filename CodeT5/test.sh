@@ -3,10 +3,10 @@ lr=5e-5
 batch_size=16 #32
 beam_size=5
 max_source_length=512
-max_target_length=512
+max_target_length=256
 epoch=30
 
-load_model_path=/home/dxx/DHPNpr/saved_models/CodeT5/checkpoint-best-ppl/pytorch_model.bin
+load_model_path=/home/dxx/DHPNpr/saved_models/CodeT5_256/checkpoint-best-ppl/pytorch_model.bin
 output_dir=/home/dxx/DHPNpr/data_dis/CodeT5
 log_file=CodeT5_data_dis.log
 # model_dir = $output_dir/save_checkpoints

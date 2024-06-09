@@ -75,16 +75,16 @@ def prepare_CR3_examples(ids_f, buggy_methods_dir, buggy_lines_dir, fix_lines_di
         for ind in range(len(buggy_method)):
             if buggy_line in buggy_method[ind]:
                 buggy_method[ind] = " <BUGS> " + buggy_line + " <BUGE> "
-                input = '\n'.join(buggy_method)
-                input = re.sub('\s+', ' ', input)
-                output = re.sub('\s+', ' ', " <FIXS> " + fix_line.strip() + " <FIXE> ")
-                examples.append(Example(
-                    idx=idx,
-                    source=input,
-                    target=output,
-                ))
-                idx += 1
-                # print(idx,input,output)
+        input = '\n'.join(buggy_method)
+        input = re.sub('\s+', ' ', input)
+        output = re.sub('\s+', ' ', " <FIXS> " + fix_line.strip() + " <FIXE> ")
+        examples.append(Example(
+            idx=idx,
+            source=input,
+            target=output,
+        ))
+        idx += 1
+        # print(idx,input,output)
 
     return examples
 
