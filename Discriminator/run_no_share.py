@@ -68,7 +68,7 @@ def main():
                         help="The output directory where the model predictions and checkpoints will be written.")
     parser.add_argument("--log_file_dir", default=None, type=str, required=True,
                         help="The output directory where the log_file will be written.")
-    parser.add_argument("--load_model_path", default=None, type=str, required=True,
+    parser.add_argument("--load_model_path", default=None, type=str,
                         help="Path to trained model: Should contain the .bin files")
     ## Other parameters
     parser.add_argument("--train_dir", default=None, type=str,
