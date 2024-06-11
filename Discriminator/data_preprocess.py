@@ -129,10 +129,10 @@ def convert_examples_to_features(item):
         sequence2_ids += [tokenizer.pad_token_id] * padding_length
         sequence2_mask += [0] * padding_length
     else:
-        sequence1_tokens = tokenizer.tokenize(example.sequence1)
-        sequence1_ids = tokenizer.convert_tokens_to_ids(sequence1_tokens)
-        sequence2_tokens = tokenizer.tokenize(example.sequence2)
-        sequence2_ids = tokenizer.convert_tokens_to_ids(sequence2_tokens)
+        sequence1_ids = tokenizer.encode(example.sequence1, max_length=args.max_source_length, padding='max_length',
+                                         truncation=True)
+        sequence2_ids = tokenizer.encode(example.sequence2, max_length=args.max_target_length, padding='max_length',
+                                         truncation=True)
 
     return InputFeatures(
         example_id=example.idx,

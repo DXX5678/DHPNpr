@@ -145,6 +145,8 @@ def main():
                         help="For distributed training: local_rank")
     parser.add_argument('--seed', type=int, default=42,
                         help="random seed for initialization")
+    parser.add_argument("--save_last_checkpoints", default='save', action='store_true')
+    parser.add_argument("--always_save_model", default='save', action='store_true')
     # print arguments
     args = parser.parse_args()
     t0 = time.time()
@@ -185,8 +187,8 @@ def main():
     elif args.n_gpu > 1:
         # multi-gpu training
         model = torch.nn.DataParallel(model)
-    pool = multiprocessing.Pool(args.cpu_cont)
-    log_file = open(os.path.join(args.log_file_dir, args.model_type + 'Discriminator_No_Share.log'), 'a+')
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    log_file = open(os.path.join(args.log_file_dir, 'Discriminator_No_Share_' + args.model_type + '.log'), 'a+')
 
     if args.do_train:
         # Prepare training data loader
@@ -217,9 +219,9 @@ def main():
         log_file.write("  Start Training...\n")
         dev_dataset = {}
         global_step, best_bleu_em, best_acc = 0, -1, 0
-        not_loss_dec_cnt, not_bleu_em_inc_cnt = 0, 0 if args.do_eval_bleu else 1e6
+        not_loss_dec_cnt = 0
 
-        for cur_epoch in range(args.start_epoch, int(args.num_train_epochs)):
+        for cur_epoch in range(int(args.num_train_epochs)):
             logger.info("  Now epoch = %d", cur_epoch)
             bar = tqdm(train_dataloader, total=len(train_dataloader), desc="Training")
             nb_tr_examples, nb_tr_steps, tr_loss = 0, 0, 0
@@ -301,9 +303,9 @@ def main():
                 else:
                     not_loss_dec_cnt += 1
                     logger.info("acc does not increase for %d epochs", not_loss_dec_cnt)
-                    if any([x > args.patience for x in [not_bleu_em_inc_cnt, not_loss_dec_cnt]]):
-                        early_stop_str = "[%d] Early stop as not_bleu_em_inc_cnt=%d, and not_loss_dec_cnt=%d\n" % (
-                            cur_epoch, not_bleu_em_inc_cnt, not_loss_dec_cnt)
+                    if any([x > args.patience for x in [not_loss_dec_cnt]]):
+                        early_stop_str = "[%d] Early stop as not_loss_dec_cnt=%d\n" % (
+                            cur_epoch, not_loss_dec_cnt)
                         logger.info(early_stop_str)
                         log_file.write(early_stop_str)
                         break
