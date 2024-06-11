@@ -11,13 +11,16 @@ from sklearn.metrics import accuracy_score
 from torch.optim import AdamW
 from torch.utils.data import RandomSampler, DistributedSampler, DataLoader, SequentialSampler
 from tqdm import tqdm
-from transformers import RobertaTokenizer, RobertaConfig
+from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
+from transformers import (RobertaTokenizer, T5Config, T5ForConditionalGeneration)
 from transformers import get_linear_schedule_with_warmup
 from data_preprocess import load_and_cache_gen_data
 from utils import get_elapse_time
 from configs import set_seed
-from model import DiscriminatorNoShare
+from model import DiscriminatorNoShare, DiscriminatorNoShareS
 
+MODEL_CLASSES = {'codebert': (RobertaConfig, RobertaModel, RobertaTokenizer),
+                 'codet5': (T5Config, T5ForConditionalGeneration, RobertaTokenizer)}
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
@@ -169,10 +172,14 @@ def main():
     # make dir if output_dir not exist
     if os.path.exists(args.output_dir) is False:
         os.makedirs(args.output_dir)
+    if os.path.exists(args.cache_path) is False:
+        os.makedirs(args.cache_path)
 
-    config = RobertaConfig.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
-    tokenizer = RobertaTokenizer.from_pretrained(args.tokenizer_name)
-    model = DiscriminatorNoShare(config.vocab_size, config.hidden_size, config.hidden_size)
+    config = MODEL_CLASSES[args.model_type][0].from_pretrained(
+        args.config_name if args.config_name else args.model_name_or_path)
+    tokenizer = MODEL_CLASSES[args.model_type][2].from_pretrained(args.tokenizer_name)
+    # model = DiscriminatorNoShare(config.vocab_size, config.hidden_size, config.hidden_size)
+    model = DiscriminatorNoShareS(config.vocab_size, config.hidden_size, config.hidden_size)
 
     model.to(device)
     if args.local_rank != -1:
@@ -193,8 +200,7 @@ def main():
     if args.do_train:
         # Prepare training data loader
         train_examples, train_data = load_and_cache_gen_data(args, args.train_dir, args.patch_train_dir, pool,
-                                                             tokenizer,
-                                                             'train', mode="train")
+                                                             tokenizer, 'train', mode="train", no_share=True)
         if args.local_rank == -1:
             train_sampler = RandomSampler(train_data)
         else:
@@ -263,7 +269,7 @@ def main():
                     eval_examples, eval_data = dev_dataset['dev_loss']
                 else:
                     eval_examples, eval_data = load_and_cache_gen_data(args, args.dev_dir, args.patch_valid_dir, pool,
-                                                                       tokenizer, 'dev', mode='dev')
+                                                                       tokenizer, 'dev', mode='dev', no_share=True)
                     dev_dataset['dev_loss'] = eval_examples, eval_data
 
                 eval_loss, eval_acc = eval_acc_epoch(args, eval_data, eval_examples, model, loss_fn)

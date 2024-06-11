@@ -11,7 +11,7 @@ from sklearn.metrics import accuracy_score
 from torch.optim import AdamW
 from torch.utils.data import RandomSampler, DistributedSampler, DataLoader, SequentialSampler
 from tqdm import tqdm
-from transformers import RobertaTokenizer, RobertaConfig, RobertaModel
+from transformers import (RobertaTokenizer, T5Config, T5ForConditionalGeneration)
 from transformers import get_linear_schedule_with_warmup
 
 from CodeBert.model import Seq2Seq
@@ -175,6 +175,8 @@ def main():
     # make dir if output_dir not exist
     if os.path.exists(args.output_dir) is False:
         os.makedirs(args.output_dir)
+    if os.path.exists(args.cache_path) is False:
+        os.makedirs(args.cache_path)
 
     config_class, model_class, tokenizer_class = MODEL_CLASSES['codet5']
     config = config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
@@ -210,8 +212,7 @@ def main():
     if args.do_train:
         # Prepare training data loader
         train_examples, train_data = load_and_cache_gen_data(args, args.train_dir, args.patch_train_dir, pool,
-                                                             tokenizer,
-                                                             'train', mode="train")
+                                                             tokenizer, 'train', mode="train")
         if args.local_rank == -1:
             train_sampler = RandomSampler(train_data)
         else:

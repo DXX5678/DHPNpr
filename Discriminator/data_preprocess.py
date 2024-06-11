@@ -110,8 +110,6 @@ def convert_examples_to_features(item):
         sequence2_ids = tokenizer.encode(sequence2_str, max_length=args.max_target_length, padding='max_length',
                                          truncation=True)
         assert sequence2_ids.count(tokenizer.eos_token_id) == 1
-        sequence1_mask = sequence1_ids.ne(tokenizer.pad_token_id)
-        sequence2_mask = sequence2_ids.ne(tokenizer.pad_token_id)
     elif args.model_type == "roberta":
         sequence1_tokens = tokenizer.tokenize(example.sequence1)[:args.max_source_length - 2]
         sequence1_tokens = [tokenizer.cls_token] + sequence1_tokens + [tokenizer.sep_token]
@@ -144,44 +142,39 @@ def convert_examples_to_features(item):
     )
 
 
-def load_and_cache_gen_data(args, dir, patch_dir, pool, tokenizer, split_tag, mode="train", only_src=False, is_sample=False):
+def load_and_cache_gen_data(args, dir, patch_dir, pool, tokenizer, split_tag, mode="train", no_share=False,
+                            only_src=False, is_sample=False):
     examples = prepare_examples_dir(dir, patch_dir, mode)
-    if args.model_type in ["codet5", "roberta"]:
-        if args.model_type == "codet5":
-            # cache the data into args.cache_path except it is sampled
-            # only_src: control whether to return only source ids for bleu evaluating (dev/test)
-            # return: examples (Example object), data (TensorDataset)
-            data_tag = '_all' if args.data_num == -1 else '_%d' % args.data_num
-            cache_fn = '{}/{}.pt'.format(args.cache_path, split_tag + ('_src' if only_src else '') + data_tag)
-            cache_flag = True
-
-            if os.path.exists(cache_fn) and not is_sample:
-                logger.info("Load cache data from %s", cache_fn)
-                data = torch.load(cache_fn)
-                return examples, data
-        tuple_examples = [(example, idx, tokenizer, args, split_tag) for idx, example in enumerate(examples)]
-        features = pool.map(convert_examples_to_features, tqdm(tuple_examples, total=len(tuple_examples)))
-        all_sequence1_ids = torch.tensor([f.sequence1_ids for f in features], dtype=torch.long)
-        all_sequence1_mask = torch.tensor([f.sequence1_mask for f in features], dtype=torch.long)
-        all_sequence2_ids = torch.tensor([f.sequence2_ids for f in features], dtype=torch.long)
-        all_sequence2_mask = torch.tensor([f.sequence2_mask for f in features], dtype=torch.long)
-        all_label = torch.tensor([f.label for f in features], dtype=torch.long)
-        data = TensorDataset(all_sequence1_ids, all_sequence1_mask, all_sequence2_ids, all_sequence2_mask, all_label)
-        if args.model_type == "codet5":
-            # cache the data into args.cache_path except it is sampled
-            # only_src: control whether to return only source ids for bleu evaluating (dev/test)
-            # return: examples (Example object), data (TensorDataset)
-            data_tag = '_all' if args.data_num == -1 else '_%d' % args.data_num
-            cache_fn = '{}/{}.pt'.format(args.cache_path, split_tag + ('_src' if only_src else '') + data_tag)
-            cache_flag = True
-            logger.info("Create cache data into %s", cache_fn)
-            if args.local_rank in [-1, 0] and not is_sample and cache_flag:
-                torch.save(data, cache_fn)
-    else:
-        tuple_examples = [(example, idx, tokenizer, args, split_tag) for idx, example in enumerate(examples)]
-        features = pool.map(convert_examples_to_features, tqdm(tuple_examples, total=len(tuple_examples)))
-        all_sequence1_ids = torch.tensor([f.sequence1_ids for f in features], dtype=torch.long)
-        all_sequence2_ids = torch.tensor([f.sequence2_ids for f in features], dtype=torch.long)
-        all_label = torch.tensor([f.label for f in features], dtype=torch.long)
+    tuple_examples = [(example, idx, tokenizer, args, split_tag) for idx, example in enumerate(examples)]
+    features = pool.map(convert_examples_to_features, tqdm(tuple_examples, total=len(tuple_examples)))
+    all_sequence1_ids = torch.tensor([f.sequence1_ids for f in features], dtype=torch.long)
+    all_sequence2_ids = torch.tensor([f.sequence2_ids for f in features], dtype=torch.long)
+    all_label = torch.tensor([f.label for f in features], dtype=torch.long)
+    if no_share:
         data = TensorDataset(all_sequence1_ids, all_sequence2_ids, all_label)
+        return examples, data
+    if args.model_type == "codet5":
+        # cache the data into args.cache_path except it is sampled
+        # only_src: control whether to return only source ids for bleu evaluating (dev/test)
+        # return: examples (Example object), data (TensorDataset)
+        data_tag = '_all'
+        cache_fn = '{}/{}.pt'.format(args.cache_path, split_tag + ('_src' if only_src else '') + data_tag)
+        cache_flag = True
+
+        if os.path.exists(cache_fn) and not is_sample:
+            logger.info("Load cache data from %s", cache_fn)
+            data = torch.load(cache_fn)
+            return examples, data
+
+        all_sequence1_mask = all_sequence1_ids.ne(tokenizer.pad_token_id)
+        all_sequence2_mask = all_sequence2_ids.ne(tokenizer.pad_token_id)
+        data = TensorDataset(all_sequence1_ids, all_sequence1_mask, all_sequence2_ids, all_sequence2_mask, all_label)
+
+        logger.info("Create cache data into %s", cache_fn)
+        if args.local_rank in [-1, 0] and not is_sample and cache_flag:
+            torch.save(data, cache_fn)
+    elif args.model_type == 'codebert':
+        all_sequence1_mask = torch.tensor([f.sequence1_mask for f in features], dtype=torch.long)
+        all_sequence2_mask = torch.tensor([f.sequence2_mask for f in features], dtype=torch.long)
+        data = TensorDataset(all_sequence1_ids, all_sequence1_mask, all_sequence2_ids, all_sequence2_mask, all_label)
     return examples, data

@@ -11,7 +11,7 @@ from sklearn.metrics import accuracy_score
 from torch.optim import AdamW
 from torch.utils.data import RandomSampler, DistributedSampler, DataLoader, SequentialSampler
 from tqdm import tqdm
-from transformers import RobertaTokenizer, RobertaConfig, RobertaModel
+from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
 from transformers import get_linear_schedule_with_warmup
 
 from CodeBert.model import Seq2Seq
@@ -215,8 +215,7 @@ def main():
     if args.do_train:
         # Prepare training data loader
         train_examples, train_data = load_and_cache_gen_data(args, args.train_dir, args.patch_train_dir, pool,
-                                                             tokenizer,
-                                                             'train', mode="train")
+                                                             tokenizer, 'train', mode="train")
         if args.local_rank == -1:
             train_sampler = RandomSampler(train_data)
         else:
