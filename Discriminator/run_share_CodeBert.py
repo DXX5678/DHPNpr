@@ -33,7 +33,7 @@ def eval_acc_epoch(args, eval_data, eval_examples, codebert, model, loss_fn):
     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size,
                                  num_workers=4, pin_memory=True)
     # Start evaluating model
-    logger.info("  " + "***** Running ppl evaluation *****")
+    logger.info("  " + "***** Running acc evaluation *****")
     logger.info("  Num examples = %d", len(eval_examples))
     logger.info("  Batch size = %d", args.eval_batch_size)
 
@@ -186,8 +186,8 @@ def main():
     decoder_layer = nn.TransformerDecoderLayer(d_model=config.hidden_size, nhead=config.num_attention_heads)
     decoder = nn.TransformerDecoder(decoder_layer, num_layers=6)
     codebert = Seq2Seq(encoder=encoder, decoder=decoder, config=config,
-                    beam_size=args.beam_size, max_length=args.max_target_length,
-                    sos_id=tokenizer.cls_token_id, eos_id=tokenizer.sep_token_id)
+                       beam_size=args.beam_size, max_length=args.max_target_length,
+                       sos_id=tokenizer.cls_token_id, eos_id=tokenizer.sep_token_id)
     if args.load_model_path is not None:
         logger.info("reload model from {}".format(args.load_model_path))
         codebert.load_state_dict(torch.load(args.load_model_path))
@@ -241,8 +241,9 @@ def main():
         logger.info("  Num epoch = %d", args.num_train_epochs)
         log_file.write("  Start Training...\n")
         dev_dataset = {}
-        global_step, best_bleu_em, best_acc = 0, -1, 0
-        not_loss_dec_cnt = 0
+        global_step, best_bleu_em, best_acc, best_loss = 0, -1, 0, 1000
+        not_acc_inc_cnt, not_loss_dec_cnt = 0, 0
+        min_delta = 1e-4
 
         for cur_epoch in range(int(args.num_train_epochs)):
             logger.info("  Now epoch = %d", cur_epoch)
@@ -299,7 +300,12 @@ def main():
                 log_file.write("  End Eval...\n")
                 # if args.data_num == -1:
                 #     tb_writer.add_scalar('dev_ppl', eval_ppl, cur_epoch)
-
+                if eval_loss < best_loss:
+                    not_loss_dec_cnt = 0
+                    best_loss = eval_loss
+                else:
+                    not_loss_dec_cnt += 1
+                    logger.info("loss does not decrease for %d epochs", not_loss_dec_cnt)
                 # save last checkpoint
                 if args.save_last_checkpoints:
                     last_output_dir = os.path.join(args.output_dir, 'checkpoint-last')
@@ -310,9 +316,9 @@ def main():
                     torch.save(model_to_save.state_dict(), output_model_file)
                     logger.info("Save the last model into %s", output_model_file)
 
-                if eval_acc > best_acc:
-                    not_loss_dec_cnt = 0
-                    logger.info("  Best ppl:%s", eval_acc)
+                if eval_acc > best_acc + min_delta:
+                    not_acc_inc_cnt = 0
+                    logger.info("  Best acc:%s", eval_acc)
                     logger.info("  " + "*" * 20)
                     log_file.write("[%d] Best acc changed into %.4f\n" % (cur_epoch, eval_acc))
                     best_acc = eval_acc
@@ -325,16 +331,16 @@ def main():
                         model_to_save = model.module if hasattr(model, 'module') else model
                         output_model_file = os.path.join(output_dir, "pytorch_model.bin")
                         torch.save(model_to_save.state_dict(), output_model_file)
-                        logger.info("Save the best ppl model into %s", output_model_file)
+                        logger.info("Save the best acc model into %s", output_model_file)
                 else:
-                    not_loss_dec_cnt += 1
-                    logger.info("acc does not increase for %d epochs", not_loss_dec_cnt)
-                    if any([x > args.patience for x in [not_loss_dec_cnt]]):
-                        early_stop_str = "[%d] Early stop as not_loss_dec_cnt=%d\n" % (
-                            cur_epoch, not_loss_dec_cnt)
-                        logger.info(early_stop_str)
-                        log_file.write(early_stop_str)
-                        break
+                    not_acc_inc_cnt += 1
+                    logger.info("acc does not increase for %d epochs", not_acc_inc_cnt)
+                if any([x > args.patience for x in [not_loss_dec_cnt, not_acc_inc_cnt]]):
+                    early_stop_str = "[%d] Early stop as not_acc_inc_cnt=%d and as not_loss_dec_cnt=%d\n" % (
+                        cur_epoch, not_acc_inc_cnt, not_loss_dec_cnt)
+                    logger.info(early_stop_str)
+                    log_file.write(early_stop_str)
+                    break
         logger.info("Finish training and take %s", get_elapse_time(t0))
 
     logger.info("Finish and take {}".format(get_elapse_time(t0)))
