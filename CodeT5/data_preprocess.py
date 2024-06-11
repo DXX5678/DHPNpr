@@ -10,21 +10,6 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-class InputFeatures(object):
-    """A single training/test features for a example."""
-
-    def __init__(self,
-                 example_id,
-                 source_ids,
-                 target_ids,
-                 url=None
-                 ):
-        self.example_id = example_id
-        self.source_ids = source_ids
-        self.target_ids = target_ids
-        self.url = url
-
-
 class Example(object):
     """A single training/test example."""
 
@@ -42,6 +27,21 @@ class Example(object):
         self.url = url
         self.task = task
         self.sub_task = sub_task
+
+
+class InputFeatures(object):
+    """A single training/test features for a example."""
+
+    def __init__(self,
+                 example_id,
+                 source_ids,
+                 target_ids,
+                 url=None
+                 ):
+        self.example_id = example_id
+        self.source_ids = source_ids
+        self.target_ids = target_ids
+        self.url = url
 
 
 def readLines(file_path):
