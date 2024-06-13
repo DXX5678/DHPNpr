@@ -96,7 +96,7 @@ def prepare_CR3_examples(ids_f, dir, patch_dir):
 
 
 def convert_examples_to_features(item):
-    example, example_index, tokenizer, args, stage = item
+    example, example_index, tokenizer, args, stage, no_share = item
     sequence1_mask, sequence2_mask = None, None
     if args.model_type == "codet5":
         sequence1_str = example.sequence1
@@ -110,7 +110,7 @@ def convert_examples_to_features(item):
         sequence2_ids = tokenizer.encode(sequence2_str, max_length=args.max_target_length, padding='max_length',
                                          truncation=True)
         assert sequence2_ids.count(tokenizer.eos_token_id) == 1
-    elif args.model_type == "roberta":
+    else:
         sequence1_tokens = tokenizer.tokenize(example.sequence1)[:args.max_source_length - 2]
         sequence1_tokens = [tokenizer.cls_token] + sequence1_tokens + [tokenizer.sep_token]
         sequence1_ids = tokenizer.convert_tokens_to_ids(sequence1_tokens)
@@ -126,11 +126,6 @@ def convert_examples_to_features(item):
         padding_length = args.max_target_length - len(sequence2_ids)
         sequence2_ids += [tokenizer.pad_token_id] * padding_length
         sequence2_mask += [0] * padding_length
-    else:
-        sequence1_ids = tokenizer.encode(example.sequence1, max_length=args.max_source_length, padding='max_length',
-                                         truncation=True)
-        sequence2_ids = tokenizer.encode(example.sequence2, max_length=args.max_target_length, padding='max_length',
-                                         truncation=True)
 
     return InputFeatures(
         example_id=example.idx,
@@ -145,7 +140,7 @@ def convert_examples_to_features(item):
 def load_and_cache_gen_data(args, dir, patch_dir, pool, tokenizer, split_tag, mode="train", no_share=False,
                             only_src=False, is_sample=False):
     examples = prepare_examples_dir(dir, patch_dir, mode)
-    tuple_examples = [(example, idx, tokenizer, args, split_tag) for idx, example in enumerate(examples)]
+    tuple_examples = [(example, idx, tokenizer, args, split_tag, no_share) for idx, example in enumerate(examples)]
     features = pool.map(convert_examples_to_features, tqdm(tuple_examples, total=len(tuple_examples)))
     all_sequence1_ids = torch.tensor([f.sequence1_ids for f in features], dtype=torch.long)
     all_sequence2_ids = torch.tensor([f.sequence2_ids for f in features], dtype=torch.long)
@@ -173,7 +168,7 @@ def load_and_cache_gen_data(args, dir, patch_dir, pool, tokenizer, split_tag, mo
         logger.info("Create cache data into %s", cache_fn)
         if args.local_rank in [-1, 0] and not is_sample and cache_flag:
             torch.save(data, cache_fn)
-    elif args.model_type == 'codebert':
+    else:
         all_sequence1_mask = torch.tensor([f.sequence1_mask for f in features], dtype=torch.long)
         all_sequence2_mask = torch.tensor([f.sequence2_mask for f in features], dtype=torch.long)
         data = TensorDataset(all_sequence1_ids, all_sequence1_mask, all_sequence2_ids, all_sequence2_mask, all_label)
