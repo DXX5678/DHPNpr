@@ -20,7 +20,7 @@ class Example(object):
                  label
                  ):
         self.idx = idx
-        self.buggy_method = buggy_method,
+        self.buggy_method = buggy_method
         self.source = source
         self.target = target
         self.label = label

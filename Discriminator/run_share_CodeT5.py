@@ -14,7 +14,6 @@ from tqdm import tqdm
 from transformers import (RobertaTokenizer, T5Config, T5ForConditionalGeneration)
 from transformers import get_linear_schedule_with_warmup
 
-from CodeBert.model import Seq2Seq
 from data_preprocess import load_and_cache_gen_data
 from utils import get_elapse_time
 from configs import set_seed
@@ -204,7 +203,7 @@ def main():
         model = DDP(model)
     elif args.n_gpu > 1:
         # multi-gpu training
-        codet5 = torch.nn.DataParallel(codet5)
+        # codet5 = torch.nn.DataParallel(codet5)
         model = torch.nn.DataParallel(model)
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     log_file = open(os.path.join(args.log_file_dir, 'Discriminator_Share_' + args.model_type + '.log'), 'a+')

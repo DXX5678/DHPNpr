@@ -17,13 +17,13 @@ model_name_or_path=/home/dxx/DHPNpr/CodeT5/codet5-base
 tokenizer_name=/home/dxx/DHPNpr/CodeT5/codet5-base
 cache_path=$output_dir/cache_data
 log_file_dir=/home/dxx/DHPNpr/logging
-load_model_path=/home/dxx/DHPNpr/saved_models
-load_dis_model_path=/home/dxx/DHPNpr/saved_models
+load_model_path=/home/dxx/DHPNpr/saved_models/CodeT5_256/checkpoint-best-ppl/pytorch_model.bin
+load_dis_model_path=/home/dxx/DHPNpr/saved_models/Discriminator_share_codet5/checkpoint-best-acc/pytorch_model.bin
 pl=java
 
 mkdir -p $output_dir
 
-python ./run.py \
+python ./GAN/CodeT5/run.py \
 --do_train \
 --do_eval \
 --model_type codet5 \

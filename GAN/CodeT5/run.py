@@ -35,11 +35,13 @@ from torch.utils.data.distributed import DistributedSampler
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import (RobertaTokenizer, T5Config, T5ForConditionalGeneration)
 import data_preprocess
+from configs import set_dist, set_seed
+from utils import get_elapse_time
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from Discriminator.model import DiscriminatorNoShare, DiscriminatorNoShareS, DiscriminatorShare
 from GAN.model import Gan
-from configs import set_dist, set_seed
 
-from utils import get_elapse_time
 
 MODEL_CLASSES = {'codet5': (T5Config, T5ForConditionalGeneration, RobertaTokenizer)}
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -237,8 +239,8 @@ def main():
 
     # build discriminator
     if args.no_share:
-        discriminator = DiscriminatorNoShare(config.vocab_size, config.hidden_size, config.hidden_size)
-        # discriminator = DiscriminatorNoShareS(config.vocab_size, config.hidden_size, config.hidden_size)
+        # discriminator = DiscriminatorNoShare(config.vocab_size, config.hidden_size, config.hidden_size)
+        discriminator = DiscriminatorNoShareS(config.vocab_size, config.hidden_size, config.hidden_size)
     else:
         discriminator = DiscriminatorShare(config.hidden_size)
     if args.load_dis_model_path is not None:
@@ -262,7 +264,7 @@ def main():
         model = torch.nn.DataParallel(model)
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
-    log_file = open(os.path.join(args.log_file_dir, str(args.no_share) + 'CodeT5_Gan.log'), 'a+')
+    log_file = open(os.path.join(args.log_file_dir, str(args.no_share) + '_S_CodeT5_Gan.log'), 'a+')
 
     if args.do_train:
         # Prepare training data loader
@@ -279,9 +281,9 @@ def main():
         # Prepare optimizer and schedule (linear warmup and decay)
         no_decay = ['bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [
-            {'params': [p for n, p in model.generator.named_parameters() if not any(nd in n for nd in no_decay)],
+            {'params': [p for n, p in model.module.generator.named_parameters() if not any(nd in n for nd in no_decay)],
              'weight_decay': args.weight_decay},
-            {'params': [p for n, p in model.generator.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+            {'params': [p for n, p in model.module.generator.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
         optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
         num_train_optimization_steps = args.num_train_epochs * len(train_dataloader)
@@ -361,7 +363,7 @@ def main():
                     last_output_dir = os.path.join(args.output_dir, 'checkpoint-last')
                     if not os.path.exists(last_output_dir):
                         os.makedirs(last_output_dir)
-                    model_to_save = model.generator.module if hasattr(model.generator, 'module') else model.generator
+                    model_to_save = model.module.generator.module if hasattr(model.module.generator, 'module') else model.module.generator
                     output_model_file = os.path.join(last_output_dir, "pytorch_model.bin")
                     torch.save(model_to_save.state_dict(), output_model_file)
                     logger.info("Save the last model into %s", output_model_file)
@@ -383,7 +385,7 @@ def main():
                     if not os.path.exists(output_dir):
                         os.makedirs(output_dir)
                     if args.always_save_model:
-                        model_to_save = model.generator.module if hasattr(model.generator, 'module') else model.generator
+                        model_to_save = model.module.generator.module if hasattr(model.module.generator, 'module') else model.module.generator
                         output_model_file = os.path.join(output_dir, "pytorch_model.bin")
                         torch.save(model_to_save.state_dict(), output_model_file)
                         logger.info("Save the best acc model into %s", output_model_file)

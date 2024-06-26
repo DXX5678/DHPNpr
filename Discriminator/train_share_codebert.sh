@@ -21,7 +21,7 @@ log_file_dir=/home/dxx/DHPNpr/logging
 
 mkdir -p $output_dir
 
-python ./run_share_CodeBert.py \
+python ./Discriminator/run_share_CodeBert.py \
 --do_train \
 --do_eval \
 --model_type codebert \

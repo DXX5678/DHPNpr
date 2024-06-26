@@ -453,18 +453,17 @@ def main():
                                                early_stopping=args.task == 'refine',
                                                max_length=args.max_target_length)
                         # print("preds length",len(preds))
-                        for pred in preds:
-                            for nb_pred in pred:
-                                t = nb_pred.cpu().numpy()
-                                t = list(t)
-                                text = tokenizer.decode(t, skip_special_tokens=True, clean_up_tokenization_spaces=False)
-                                # print(text)
-                                p.append(text)
-                                # text = "<PRED_START>" + text.strip() + "<PRED_END>"
-                                # pred_f.write(text + '\n')
+                        for nb_pred in preds:
+                            t = nb_pred.cpu().numpy()
+                            t = list(t)
+                            text = tokenizer.decode(t, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+                            # print(text)
+                            p.append(text.replace("<FIXS>", "").replace("<FIXE>", ""))
+                            # text = "<PRED_START>" + text.strip() + "<PRED_END>"
+                            # pred_f.write(text + '\n')
 
                 buggy_file_lines = open(args.buggy_file, "r").readlines()
-                buggy_line_number = list(map(int, args.buggy_line.split()))
+                buggy_line_number = list(map(int, args.buggy_line.split(",")))
                 for i in range(len(p)):
                     output_file = os.path.join(args.output_dir, str(i + 1), os.path.basename(args.buggy_file))
                     os.makedirs(os.path.dirname(output_file))
@@ -475,7 +474,7 @@ def main():
                             if not flag:
                                 buggy_line = buggy_file_lines[j]
                                 white_space_before_buggy_line = buggy_line[0:buggy_line.find(buggy_line.lstrip())]
-                                output_file.write(white_space_before_buggy_line + p[i] + "\n")
+                                output_file.write(white_space_before_buggy_line + p[i].strip() + "\n")
                                 flag = True
                             else:
                                 continue
@@ -513,9 +512,9 @@ def main():
             index = 0
             assert len(ids) == len(for_train_examples)
             for id in tqdm(ids):
-                ref = pred_nls[index]
+                ref = pred_nls[index].replace("<FIXS>", "").replace("<FIXE>", "")
                 gold = for_train_examples[index]
-                if ref.replace(' ', '') != gold.target.replace(' ', ''):
+                if ref.replace(' ', '') != gold.target.replace("<FIXS>", "").replace("<FIXE>", "").replace(' ', ''):
                     with open(os.path.join(patch_lines_dir, id + ".txt"), 'w') as f:
                         f.write(ref + '\n')
                     f.close()
@@ -552,9 +551,9 @@ def main():
             index = 0
             assert len(ids) == len(for_valid_examples)
             for id in tqdm(ids):
-                ref = pred_nls[index]
+                ref = pred_nls[index].replace("<FIXS>", "").replace("<FIXE>", "")
                 gold = for_valid_examples[index]
-                if ref.replace(' ', '') != gold.target.replace(' ', ''):
+                if ref.replace(' ', '') != gold.target.replace("<FIXS>", "").replace("<FIXE>", "").replace(' ', ''):
                     with open(os.path.join(patch_lines_dir, id + ".txt"), 'w') as f:
                         f.write(ref + '\n')
                     f.close()

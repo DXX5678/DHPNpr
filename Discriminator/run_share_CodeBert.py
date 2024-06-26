@@ -14,12 +14,15 @@ from tqdm import tqdm
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
 from transformers import get_linear_schedule_with_warmup
 
-from CodeBert.model import Seq2Seq
+
 from data_preprocess import load_and_cache_gen_data
 from utils import get_elapse_time
 from configs import set_seed
 from model import DiscriminatorShare
+import sys
 
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from CodeBert.model import Seq2Seq
 MODEL_CLASSES = {'codebert': (RobertaConfig, RobertaModel, RobertaTokenizer)}
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -207,7 +210,7 @@ def main():
         model = DDP(model)
     elif args.n_gpu > 1:
         # multi-gpu training
-        codebert = torch.nn.DataParallel(codebert)
+        # codebert = torch.nn.DataParallel(codebert)
         model = torch.nn.DataParallel(model)
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     log_file = open(os.path.join(args.log_file_dir, 'Discriminator_Share_' + args.model_type + '.log'), 'a+')

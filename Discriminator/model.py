@@ -13,13 +13,14 @@ class DiscriminatorShare(nn.Module):
 
     def __init__(self, hidden_dim, output_dim=2):
         super(DiscriminatorShare, self).__init__()
+        self.lstm = nn.LSTM(hidden_dim, hidden_dim, batch_first=True)
         self.drop = nn.Dropout(p=0.3)
-        self.fc_net = nn.Sequential(nn.Linear(hidden_dim * 2, hidden_dim), nn.BatchNorm1d(hidden_dim), nn.ReLU(),
-                                    nn.Dropout(0.3), nn.Linear(hidden_dim, output_dim))
+        self.fc_net = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, buggy_embedded, patch_embedded):
         combined = torch.cat((buggy_embedded, patch_embedded), dim=1)
-        output = self.drop(combined)
+        _, (hidden, _) = self.lstm(combined)
+        output = self.drop(hidden[-1])
         return self.fc_net(output)
 
 

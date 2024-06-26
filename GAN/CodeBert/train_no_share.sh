@@ -15,12 +15,13 @@ validate_file=/home/dxx/DHPNpr/data/Valid
 model_name_or_path=/home/dxx/DHPNpr/CodeBert/codebert-base
 tokenizer_name=/home/dxx/DHPNpr/CodeBert/codebert-base
 log_file_dir=/home/dxx/DHPNpr/logging
-load_model_path=/home/dxx/DHPNpr/saved_models
-load_dis_model_path=/home/dxx/DHPNpr/saved_models
+load_model_path=/home/dxx/DHPNpr/saved_models/CodeBert/checkpoint-best-ppl/pytorch_model.bin
+load_dis_model_path=/home/dxx/DHPNpr/saved_models/Discriminator_no_share_codebert/checkpoint-best-acc/pytorch_model.bin
+# load_dis_model_path=/home/dxx/DHPNpr/saved_models/DiscriminatorS_no_share_codebert/checkpoint-best-acc/pytorch_model.bin
 
 mkdir -p $output_dir
 
-python ./run.py \
+python ./GAN/CodeBert/run.py \
 --do_train \
 --do_eval \
 --no_share \
