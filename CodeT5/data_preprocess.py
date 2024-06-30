@@ -220,19 +220,19 @@ def read_test_examples(filename, args):
     if len(ab_buggy_lines) == 1:
         for j in range(args.start_line - 1, args.end_line):
             if j + 1 == ab_buggy_lines[0]:
-                input.append("<BUGS>")
+                input.append(" <BUGS> ")
                 input.append(buggy_method[j-(args.start_line-1)])
-                input.append("<BUGE>")
+                input.append(" <BUGE> ")
             else:
                 input.append(buggy_method[j-(args.start_line-1)])
     else:
         for j in range(args.start_line - 1, args.end_line):
             if j + 1 == ab_buggy_lines[0]:
-                input.append("<BUGS>")
+                input.append(" <BUGS> ")
                 input.append(buggy_method[j-(args.start_line-1)])
             elif j + 1 == ab_buggy_lines[-1]:
                 input.append(buggy_method[j-(args.start_line-1)])
-                input.append("<BUGE>")
+                input.append(" <BUGE> ")
             else:
                 input.append(buggy_method[j-(args.start_line-1)])
     source = '\n'.join(input)
