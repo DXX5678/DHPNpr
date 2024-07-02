@@ -80,7 +80,6 @@ def prepare_CR3_examples(ids_f, buggy_methods_dir, buggy_lines_dir, fix_lines_di
                     target=output,
                 ))
                 idx += 1
-                print(idx, input, output)
 
     return examples
 

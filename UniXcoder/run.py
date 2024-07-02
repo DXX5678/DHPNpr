@@ -92,7 +92,7 @@ def main():
                         help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float,
                         help="Max gradient norm.")
-    parser.add_argument("--num_train_epochs", default=3.0, type=float,
+    parser.add_argument("--num_train_epochs", default=3.0, type=int,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_steps", default=-1, type=int,
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")
@@ -183,7 +183,7 @@ def main():
         nb_tr_examples, nb_tr_steps, tr_loss, global_step, best_bleu, best_loss = 0, 0, 0, 0, 0, 1e6
         for epoch in range(args.num_train_epochs):
             bar = tqdm(train_dataloader, total=len(train_dataloader))
-            for step in bar:
+            for batch in bar:
                 batch = tuple(t.to(device) for t in batch)
                 source_ids, target_ids = batch
                 loss, _, _, _ = model(source_ids, target_ids)
