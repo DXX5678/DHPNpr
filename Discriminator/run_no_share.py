@@ -20,7 +20,8 @@ from configs import set_seed
 from model import DiscriminatorNoShare, DiscriminatorNoShareS
 
 MODEL_CLASSES = {'codebert': (RobertaConfig, RobertaModel, RobertaTokenizer),
-                 'codet5': (T5Config, T5ForConditionalGeneration, RobertaTokenizer)}
+                 'codet5': (T5Config, T5ForConditionalGeneration, RobertaTokenizer),
+                 'unixcoder': (RobertaConfig, RobertaModel, RobertaTokenizer)}
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
@@ -98,7 +99,7 @@ def main():
     parser.add_argument("--max_target_length", default=32, type=int,
                         help="The maximum total target sequence length after tokenization. Sequences longer "
                              "than this will be truncated, sequences shorter will be padded.")
-    parser.add_argument("--patience", default=7, type=int)
+    parser.add_argument("--patience", default=5, type=int)
     parser.add_argument("--do_train", action='store_true',
                         help="Whether to run training.")
     parser.add_argument("--do_eval", action='store_true',
@@ -178,8 +179,7 @@ def main():
     config = MODEL_CLASSES[args.model_type][0].from_pretrained(
         args.config_name if args.config_name else args.model_name_or_path)
     tokenizer = MODEL_CLASSES[args.model_type][2].from_pretrained(args.tokenizer_name)
-    # model = DiscriminatorNoShare(config.vocab_size, config.hidden_size, config.hidden_size)
-    model = DiscriminatorNoShareS(config.vocab_size, config.hidden_size, config.hidden_size)
+    model = DiscriminatorNoShare(config.vocab_size, config.hidden_size, config.hidden_size)
 
     model.to(device)
     if args.local_rank != -1:
@@ -316,7 +316,7 @@ def main():
                 else:
                     not_acc_inc_cnt += 1
                     logger.info("acc does not increase for %d epochs", not_acc_inc_cnt)
-                if any([x > args.patience for x in [not_loss_dec_cnt, not_acc_inc_cnt]]):
+                if any([x >= args.patience for x in [not_loss_dec_cnt, not_acc_inc_cnt]]):
                     early_stop_str = "[%d] Early stop as not_acc_inc_cnt=%d and as not_loss_dec_cnt=%d\n" % (
                         cur_epoch, not_acc_inc_cnt, not_loss_dec_cnt)
                     logger.info(early_stop_str)

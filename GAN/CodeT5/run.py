@@ -146,7 +146,8 @@ def main():
                         help="Whether to run eval on the dev set.")
     parser.add_argument("--do_test", action='store_true',
                         help="Whether to inference.")
-    parser.add_argument("--no_share", action='store_true')
+    parser.add_argument("--no_share", default=0, type=int,
+                        help="Mode of discriminator")
     parser.add_argument("--do_defects4j", action='store_true',
                         help="Whether to inference on the Defect4J.")
     parser.add_argument("--buggy_file", default="", type=str,
@@ -238,8 +239,9 @@ def main():
         generator.load_state_dict(torch.load(args.load_model_path))
 
     # build discriminator
-    if args.no_share:
-        # discriminator = DiscriminatorNoShare(config.vocab_size, config.hidden_size, config.hidden_size)
+    if args.no_share == 1:
+        discriminator = DiscriminatorNoShare(config.vocab_size, config.hidden_size, config.hidden_size)
+    elif args.no_share == 2:
         discriminator = DiscriminatorNoShareS(config.vocab_size, config.hidden_size, config.hidden_size)
     else:
         discriminator = DiscriminatorShare(config.hidden_size)
@@ -264,7 +266,7 @@ def main():
         model = torch.nn.DataParallel(model)
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
-    log_file = open(os.path.join(args.log_file_dir, str(args.no_share) + '_S_CodeT5_Gan.log'), 'a+')
+    log_file = open(os.path.join(args.log_file_dir, str(args.no_share) + '_CodeT5_Gan.log'), 'a+')
 
     if args.do_train:
         # Prepare training data loader

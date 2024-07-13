@@ -3,31 +3,28 @@ lr=5e-5
 batch_size=16 #32
 beam_size=5
 max_source_length=512
-max_target_length=256
-epoch=30
+max_target_length=512
+train_steps=400000
+eval_steps=3000
 
 
-output_dir=/home/dxx/DHPNpr/saved_models/CodeT5_Gan_No_share
+output_dir=/home/dxx/DHPNpr/saved_models/CodeBert_Gan_No_shareS
 log_file=train.log
-res_dir=$output_dir
-summary_dir=$output_dir
 train_file=/home/dxx/DHPNpr/data/Train
 validate_file=/home/dxx/DHPNpr/data/Valid
-model_name_or_path=/home/dxx/DHPNpr/CodeT5/codet5-base
-tokenizer_name=/home/dxx/DHPNpr/CodeT5/codet5-base
-load_model_path=/home/dxx/DHPNpr/saved_models/CodeT5_256/checkpoint-best-ppl/pytorch_model.bin
-load_dis_model_path=/home/dxx/DHPNpr/saved_models/Discriminator_no_share_codet5/checkpoint-best-acc/pytorch_model.bin
-cache_path=$output_dir/cache_data
+model_name_or_path=/home/dxx/DHPNpr/CodeBert/codebert-base
+tokenizer_name=/home/dxx/DHPNpr/CodeBert/codebert-base
 log_file_dir=/home/dxx/DHPNpr/logging
-pl=java
+load_model_path=/home/dxx/DHPNpr/saved_models/CodeBert/checkpoint-best-ppl/pytorch_model.bin
+load_dis_model_path=/home/dxx/DHPNpr/saved_models/Discriminator_no_shareS_codebert/checkpoint-best-acc/pytorch_model.bin
 
 mkdir -p $output_dir
 
-python ./GAN/CodeT5/run.py \
+python ./GAN/CodeBert/run.py \
 --do_train \
 --do_eval \
---no_share 1 \
---model_type codet5 \
+--no_share 2 \
+--model_type roberta \
 --model_name_or_path $model_name_or_path \
 --tokenizer_name $tokenizer_name \
 --load_model_path $load_model_path \
@@ -41,11 +38,7 @@ python ./GAN/CodeT5/run.py \
 --train_batch_size $batch_size \
 --eval_batch_size $batch_size \
 --learning_rate $lr \
---num_train_epochs $epoch \
---summary_dir $summary_dir \
---cache_path $cache_path \
+--train_steps $train_steps \
+--eval_steps $eval_steps \
 --log_file_dir $log_file_dir \
---res_dir $res_dir \
---task refine \
---lang $pl \
 2>&1| tee $output_dir/$log_file

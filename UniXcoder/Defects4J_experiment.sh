@@ -60,7 +60,7 @@ do
   BUGGY_FILE_NAME=${BUGGY_FILE_PATH##*/}
 
   echo "Generating patches for ${col1}_${col2}"
-  python $CURRENT_DIR/preprocess_Defects4J.py --temp_file=$CURRENT_DIR/src-test.txt --buggy_file=$BUG_PROJECT/$col3 --buggy_line=$col4
+  python $CURRENT_DIR/preprocess_Defects4J.py --temp_file=$CURRENT_DIR/src-test.txt --buggy_file=$BUG_PROJECT/$col3 --start=$col5 --end=$col6
   echo
 
   echo "Runing the UniXcoder for ${col1}_${col2}"
@@ -78,7 +78,9 @@ do
   --beam_size 30 \
   --eval_batch_size 1 \
   --buggy_file $BUG_PROJECT/$col3 \
-  --buggy_line $col4
+  --buggy_line $col4 \
+  --start_line $col5 \
+  --end_line $col6
   echo
 
   echo "Generating diffs"

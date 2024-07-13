@@ -16,7 +16,7 @@ def main():
     input = []
     for line in ab_buggy_lines:
         input.append(buggy_file_lines[line-1])
-    output_file.write("".join(input).strip())
+    output_file.write("".join(input).strip().replace("\n", " "))
     output_file.close()
     
     

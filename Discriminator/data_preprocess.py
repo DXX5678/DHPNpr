@@ -52,15 +52,15 @@ def readLines(file_path):
     return lines
 
 
-def prepare_examples_dir(dir, patch_dir, mode="train"):
+def prepare_examples_dir(dir, patch_dir, args, mode="train"):
     if mode == "train":
         ids_f = os.path.join(dir, "trn.ids")
     else:
         ids_f = os.path.join(dir, "valid.ids")
-    return prepare_CR3_examples(ids_f, dir, patch_dir)
+    return prepare_CR3_examples(ids_f, dir, patch_dir, args)
 
 
-def prepare_CR3_examples(ids_f, dir, patch_dir):
+def prepare_CR3_examples(ids_f, dir, patch_dir, args):
     ids = readLines(ids_f)
     examples = []
     idx = 0
@@ -75,8 +75,12 @@ def prepare_CR3_examples(ids_f, dir, patch_dir):
         buggy_method = readLines(os.path.join(buggy_methods_dir, id + ".txt"))
         buggy_code = '\n'.join(buggy_method)
         buggy_code = re.sub('\s+', ' ', buggy_code)
-        patch_code = re.sub('\s+', ' ', patch_line.strip())
-        fix_code = re.sub('\s+', ' ', fix_line.strip())
+        if args.model_type == "codebert":
+            patch_code = re.sub('\s+', ' ', patch_line.strip())
+            fix_code = re.sub('\s+', ' ', fix_line.strip())
+        else:
+            patch_code = re.sub('\s+', ' ', " <FIXS> " + patch_line.strip() + " <FIXE> ")
+            fix_code = re.sub('\s+', ' ', " <FIXS> " + fix_line.strip() + " <FIXE> ")
         examples.append(Example(
             idx=idx,
             sequence1=buggy_code,
@@ -110,7 +114,7 @@ def convert_examples_to_features(item):
         sequence2_ids = tokenizer.encode(sequence2_str, max_length=args.max_target_length, padding='max_length',
                                          truncation=True)
         assert sequence2_ids.count(tokenizer.eos_token_id) == 1
-    else:
+    elif args.model_type == "codebert":
         sequence1_tokens = tokenizer.tokenize(example.sequence1)[:args.max_source_length - 2]
         sequence1_tokens = [tokenizer.cls_token] + sequence1_tokens + [tokenizer.sep_token]
         sequence1_ids = tokenizer.convert_tokens_to_ids(sequence1_tokens)
@@ -126,6 +130,22 @@ def convert_examples_to_features(item):
         padding_length = args.max_target_length - len(sequence2_ids)
         sequence2_ids += [tokenizer.pad_token_id] * padding_length
         sequence2_mask += [0] * padding_length
+    else:
+        sequence1_tokens = tokenizer.tokenize(example.sequence1)[:args.max_source_length - 2]
+        sequence1_tokens = [tokenizer.cls_token] + sequence1_tokens + [tokenizer.sep_token]
+        sequence1_ids = tokenizer.convert_tokens_to_ids(sequence1_tokens)
+        # source_mask = [1] * (len(source_tokens))
+        padding_length = args.max_source_length - len(sequence1_ids)
+        sequence1_ids += [tokenizer.pad_token_id] * padding_length
+        # source_mask += [0] * padding_length
+
+        sequence2_tokens = tokenizer.tokenize(example.sequence2)[:args.max_target_length - 2]
+        sequence2_tokens = [tokenizer.cls_token] + sequence2_tokens + [tokenizer.sep_token]
+        sequence2_ids = tokenizer.convert_tokens_to_ids(sequence2_tokens)
+        # target_mask = [1] * len(target_ids)
+        padding_length = args.max_target_length - len(sequence2_ids)
+        sequence2_ids += [tokenizer.pad_token_id] * padding_length
+        # target_mask += [0] * padding_length
 
     return InputFeatures(
         example_id=example.idx,
@@ -139,7 +159,7 @@ def convert_examples_to_features(item):
 
 def load_and_cache_gen_data(args, dir, patch_dir, pool, tokenizer, split_tag, mode="train", no_share=False,
                             only_src=False, is_sample=False):
-    examples = prepare_examples_dir(dir, patch_dir, mode)
+    examples = prepare_examples_dir(dir, patch_dir, args, mode)
     tuple_examples = [(example, idx, tokenizer, args, split_tag, no_share) for idx, example in enumerate(examples)]
     features = pool.map(convert_examples_to_features, tqdm(tuple_examples, total=len(tuple_examples)))
     all_sequence1_ids = torch.tensor([f.sequence1_ids for f in features], dtype=torch.long)
@@ -168,8 +188,12 @@ def load_and_cache_gen_data(args, dir, patch_dir, pool, tokenizer, split_tag, mo
         logger.info("Create cache data into %s", cache_fn)
         if args.local_rank in [-1, 0] and not is_sample and cache_flag:
             torch.save(data, cache_fn)
-    else:
+    elif args.model_type == "codebert":
         all_sequence1_mask = torch.tensor([f.sequence1_mask for f in features], dtype=torch.long)
         all_sequence2_mask = torch.tensor([f.sequence2_mask for f in features], dtype=torch.long)
+        data = TensorDataset(all_sequence1_ids, all_sequence1_mask, all_sequence2_ids, all_sequence2_mask, all_label)
+    else:
+        all_sequence1_mask = all_sequence1_ids.ne(tokenizer.pad_token_id)
+        all_sequence2_mask = all_sequence2_ids.ne(tokenizer.pad_token_id)
         data = TensorDataset(all_sequence1_ids, all_sequence1_mask, all_sequence2_ids, all_sequence2_mask, all_label)
     return examples, data

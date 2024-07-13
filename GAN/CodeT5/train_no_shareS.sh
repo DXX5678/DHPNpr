@@ -7,7 +7,7 @@ max_target_length=256
 epoch=30
 
 
-output_dir=/home/dxx/DHPNpr/saved_models/CodeT5_Gan_No_share
+output_dir=/home/dxx/DHPNpr/saved_models/CodeT5_Gan_No_shareS
 log_file=train.log
 res_dir=$output_dir
 summary_dir=$output_dir
@@ -16,7 +16,7 @@ validate_file=/home/dxx/DHPNpr/data/Valid
 model_name_or_path=/home/dxx/DHPNpr/CodeT5/codet5-base
 tokenizer_name=/home/dxx/DHPNpr/CodeT5/codet5-base
 load_model_path=/home/dxx/DHPNpr/saved_models/CodeT5_256/checkpoint-best-ppl/pytorch_model.bin
-load_dis_model_path=/home/dxx/DHPNpr/saved_models/Discriminator_no_share_codet5/checkpoint-best-acc/pytorch_model.bin
+load_dis_model_path=/home/dxx/DHPNpr/saved_models/Discriminator_no_shareS_codet5/checkpoint-best-acc/pytorch_model.bin
 cache_path=$output_dir/cache_data
 log_file_dir=/home/dxx/DHPNpr/logging
 pl=java
@@ -26,7 +26,7 @@ mkdir -p $output_dir
 python ./GAN/CodeT5/run.py \
 --do_train \
 --do_eval \
---no_share 1 \
+--no_share 2 \
 --model_type codet5 \
 --model_name_or_path $model_name_or_path \
 --tokenizer_name $tokenizer_name \

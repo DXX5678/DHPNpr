@@ -17,14 +17,13 @@ tokenizer_name=/home/dxx/DHPNpr/CodeBert/codebert-base
 log_file_dir=/home/dxx/DHPNpr/logging
 load_model_path=/home/dxx/DHPNpr/saved_models/CodeBert/checkpoint-best-ppl/pytorch_model.bin
 load_dis_model_path=/home/dxx/DHPNpr/saved_models/Discriminator_no_share_codebert/checkpoint-best-acc/pytorch_model.bin
-# load_dis_model_path=/home/dxx/DHPNpr/saved_models/DiscriminatorS_no_share_codebert/checkpoint-best-acc/pytorch_model.bin
 
 mkdir -p $output_dir
 
 python ./GAN/CodeBert/run.py \
 --do_train \
 --do_eval \
---no_share \
+--no_share 1 \
 --model_type roberta \
 --model_name_or_path $model_name_or_path \
 --tokenizer_name $tokenizer_name \

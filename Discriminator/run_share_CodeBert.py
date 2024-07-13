@@ -50,7 +50,7 @@ def eval_acc_epoch(args, eval_data, eval_examples, codebert, model, loss_fn):
         with torch.no_grad():
             sequence_1_output = codebert.encoder(sequence_1_ids, attention_mask=sequence_1_mask)
             sequence_2_output = codebert.encoder(sequence_2_ids, attention_mask=sequence_2_mask)
-            outputs = model(sequence_1_output[0], sequence_2_output[0])
+            outputs = model(sequence_1_output[0], sequence_2_output[0], sequence_1_mask, sequence_2_mask)
             loss = loss_fn(outputs.view(-1, 2), labels.view(-1))
         # eval_loss += loss.item()
         eval_loss += torch.mean(loss).item()
@@ -104,7 +104,7 @@ def main():
     parser.add_argument("--max_target_length", default=32, type=int,
                         help="The maximum total target sequence length after tokenization. Sequences longer "
                              "than this will be truncated, sequences shorter will be padded.")
-    parser.add_argument("--patience", default=7, type=int)
+    parser.add_argument("--patience", default=5, type=int)
     parser.add_argument("--do_train", action='store_true',
                         help="Whether to run training.")
     parser.add_argument("--do_eval", action='store_true',
@@ -259,7 +259,7 @@ def main():
                 with torch.no_grad():
                     sequence_1_output = codebert.encoder(sequence_1_ids, attention_mask=sequence_1_mask)
                     sequence_2_output = codebert.encoder(sequence_2_ids, attention_mask=sequence_2_mask)
-                outputs = model(sequence_1_output[0], sequence_2_output[0])
+                outputs = model(sequence_1_output[0], sequence_2_output[0], sequence_1_mask, sequence_2_mask)
                 loss = loss_fn(outputs.view(-1, 2), labels.view(-1))
 
                 if args.n_gpu > 1:

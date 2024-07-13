@@ -70,6 +70,10 @@ def main():
                         help="Path of the buggy project on the Defect4J.")
     parser.add_argument("--buggy_line", default="", type=str,
                         help="Location of the buggy code.")
+    parser.add_argument("--start_line", default=-1, type=int,
+                        help="Location of the buggy method.")
+    parser.add_argument("--end_line", default=-1, type=int,
+                        help="Location of the buggy method.")
 
     parser.add_argument("--do_lower_case", action='store_true',
                         help="Set this flag if you are using an uncased model.")
@@ -92,7 +96,7 @@ def main():
                         help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float,
                         help="Max gradient norm.")
-    parser.add_argument("--num_train_epochs", default=3.0, type=int,
+    parser.add_argument("--num_train_epochs", default=3, type=int,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_steps", default=-1, type=int,
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")

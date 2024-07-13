@@ -21,12 +21,13 @@ from torch.utils.data.distributed import DistributedSampler
 from transformers import (AdamW, get_linear_schedule_with_warmup)
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from CodeBert.model import Seq2Seq
+from UniXcoder.model import Seq2Seq
 from Discriminator.model import DiscriminatorNoShareS, DiscriminatorNoShare, DiscriminatorShare
 from GAN.model import Gan
 
-MODEL_CLASSES = {'roberta': (RobertaConfig, RobertaModel, RobertaTokenizer)}
+MODEL_CLASSES = {'unixcoder': (RobertaConfig, RobertaModel, RobertaTokenizer)}
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
@@ -105,7 +106,7 @@ def main():
                         help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float,
                         help="Max gradient norm.")
-    parser.add_argument("--num_train_epochs", default=3.0, type=float,
+    parser.add_argument("--num_train_epochs", default=3, type=int,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_steps", default=-1, type=int,
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")
@@ -139,7 +140,7 @@ def main():
                    args.local_rank, device, args.n_gpu, bool(args.local_rank != -1))
     args.device = device
     # Set seed
-    set_seed(args)
+    set_seed(args.seed)
     # make dir if output_dir not exist
     if os.path.exists(args.output_dir) is False:
         os.makedirs(args.output_dir)
@@ -148,16 +149,14 @@ def main():
     config = config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
     tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
                                                 do_lower_case=args.do_lower_case)
-
+    config.is_decoder = True
     # build generator
     encoder = model_class.from_pretrained(args.model_name_or_path, config=config)
-    decoder_layer = nn.TransformerDecoderLayer(d_model=config.hidden_size, nhead=config.num_attention_heads)
-    decoder = nn.TransformerDecoder(decoder_layer, num_layers=6)
-    generator = Seq2Seq(encoder=encoder, decoder=decoder, config=config,
+    generator = Seq2Seq(encoder=encoder, decoder=encoder, config=config,
                         beam_size=args.beam_size, max_length=args.max_target_length,
                         sos_id=tokenizer.cls_token_id, eos_id=tokenizer.sep_token_id)
     if args.load_model_path is not None:
-        logger.info("reload generator model from {}".format(args.load_model_path))
+        logger.info("reload model from {}".format(args.load_model_path))
         generator.load_state_dict(torch.load(args.load_model_path))
 
     # build discriminator
@@ -186,7 +185,7 @@ def main():
     elif args.n_gpu > 1:
         # multi-gpu training
         model = torch.nn.DataParallel(model)
-    log_file = open(os.path.join(args.log_file_dir, str(args.no_share) + '_CodeBert_Gan.log'), 'a+')
+    log_file = open(os.path.join(args.log_file_dir, str(args.no_share) + '_UniXcoder_Gan.log'), 'a+')
 
     if args.do_train:
         # Prepare training data loader
@@ -209,52 +208,53 @@ def main():
             {'params': [p for n, p in model.module.generator.named_parameters() if any(nd in n for nd in no_decay)],
              'weight_decay': 0.0}
         ]
+        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
         optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
-                                                    num_training_steps=num_train_optimization_steps)
+        scheduler = get_linear_schedule_with_warmup(optimizer,
+                                                    num_warmup_steps=int(t_total * 0.1),
+                                                    num_training_steps=t_total)
         loss_fn = nn.CrossEntropyLoss()
         # Start training
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_examples))
         logger.info("  Batch size = %d", args.train_batch_size)
-        logger.info("  Num epoch = %d", num_train_optimization_steps * args.train_batch_size // len(train_examples))
+        logger.info("  Num epoch = %d", args.num_train_epochs)
         log_file.write("  Start Training...\n")
         model.train()
         dev_dataset = {}
         not_loss_dec_cnt, not_acc_inc_cnt = 0, 0
         min_delta = 1e-4
         nb_tr_examples, nb_tr_steps, tr_loss, global_step, best_acc, best_loss = 0, 0, 0, 0, 0, 1e6
-        bar = tqdm(range(num_train_optimization_steps), total=num_train_optimization_steps)
-        train_dataloader = cycle(train_dataloader)
-        eval_flag = True
-        for step in bar:
-            batch = next(train_dataloader)
-            batch = tuple(t.to(device) for t in batch)
-            buggy_method_ids, buggy_method_mask, source_ids, source_mask, target_ids, target_mask, labels = batch
-            outputs = model(buggy_method_ids, buggy_method_mask, source_ids, source_mask, target_ids, target_mask, args,
-                            args.no_share)
-            loss = loss_fn(outputs.view(-1, 2), labels.view(-1))
-            if args.n_gpu > 1:
-                loss = loss.mean()  # mean() to average on multi-gpu.
-            if args.gradient_accumulation_steps > 1:
-                loss = loss / args.gradient_accumulation_steps
-            tr_loss += loss.item()
-            train_loss = round(tr_loss * args.gradient_accumulation_steps / (nb_tr_steps + 1), 4)
-            bar.set_description("loss {}".format(train_loss))
-            log_file.write("loss {}\n".format(train_loss))
-            nb_tr_examples += source_ids.size(0)
-            nb_tr_steps += 1
-            loss.backward()
+        for epoch in range(args.num_train_epochs):
+            bar = tqdm(train_dataloader, total=len(train_dataloader))
+            for batch in bar:
+                batch = tuple(t.to(device) for t in batch)
+                buggy_method_ids, buggy_method_mask, source_ids, source_mask, target_ids, target_mask, labels = batch
+                outputs = model(buggy_method_ids, buggy_method_mask, source_ids, source_mask, target_ids, target_mask,
+                                args,
+                                args.no_share)
+                loss = loss_fn(outputs.view(-1, 2), labels.view(-1))
+                if args.n_gpu > 1:
+                    loss = loss.mean()  # mean() to average on multi-gpu.
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
+                tr_loss += loss.item()
+                train_loss = round(tr_loss * args.gradient_accumulation_steps / (nb_tr_steps + 1), 4)
+                bar.set_description("epoch {} loss {}".format(epoch, train_loss))
+                log_file.write("epoch {} loss {}".format(epoch, train_loss))
+                nb_tr_examples += source_ids.size(0)
+                nb_tr_steps += 1
+                loss.backward()
 
-            if (nb_tr_steps + 1) % args.gradient_accumulation_steps == 0:
-                # Update parameters
-                optimizer.step()
-                optimizer.zero_grad()
-                scheduler.step()
-                global_step += 1
-                eval_flag = True
+                if (nb_tr_steps + 1) % args.gradient_accumulation_steps == 0:
+                    # Update parameters
+                    optimizer.step()
+                    optimizer.zero_grad()
+                    scheduler.step()
+                    global_step += 1
+                    eval_flag = True
 
-            if args.do_eval and ((global_step + 1) % args.eval_steps == 0) and eval_flag:
+            if args.do_eval and (int(epoch) % 2 == 0 or int(epoch) > int(args.num_train_epochs) - 5 or int(epoch) < 5):
                 # Eval model with dev dataset
                 tr_loss = 0
                 nb_tr_examples, nb_tr_steps = 0, 0
@@ -265,7 +265,8 @@ def main():
                     eval_examples, eval_data = load_gen_data(args, tokenizer, args.dev_dir, mode="valid")
                     dev_dataset['dev_loss'] = eval_examples, eval_data
                 eval_sampler = SequentialSampler(eval_data)
-                eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
+                eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size,
+                                             num_workers=4)
 
                 logger.info("  " + "***** Running acc evaluation *****")
                 logger.info("  Num examples = %d", len(eval_examples))
@@ -292,9 +293,9 @@ def main():
                     true_labels.extend(labels.cpu().numpy())
                 accuracy = accuracy_score(true_labels, predictions)
                 eval_loss = round(eval_loss / batch_num, 5)
-                result = {'eval_loss': round(eval_loss, 5),
+                result = {'epoch': epoch,
+                          'eval_loss': round(eval_loss, 5),
                           'global_step': global_step + 1,
-                          'train_loss': round(train_loss, 5),
                           'eval_acc': round(accuracy, 5)}
                 for key in sorted(result.keys()):
                     logger.info("  %s = %s", key, str(result[key]))
@@ -307,7 +308,7 @@ def main():
                 if not os.path.exists(last_output_dir):
                     os.makedirs(last_output_dir)
                 model_to_save = model.module.generator.module if hasattr(model.module.generator,
-                                                                  'module') else model.module.generator  # Only save the model it-self
+                                                                         'module') else model.module.generator  # Only save the model it-self
                 output_model_file = os.path.join(last_output_dir, "pytorch_model.bin")
                 torch.save(model_to_save.state_dict(), output_model_file)
                 logger.info("Save the last model into %s", output_model_file)
@@ -330,7 +331,7 @@ def main():
                         os.makedirs(output_dir)
                     if args.always_save_model:
                         model_to_save = model.module.generator.module if hasattr(model.module.generator,
-                                                                          'module') else model.module.generator
+                                                                                 'module') else model.module.generator
                         output_model_file = os.path.join(output_dir, "pytorch_model.bin")
                         torch.save(model_to_save.state_dict(), output_model_file)
                         logger.info("Save the best acc model into %s", output_model_file)
