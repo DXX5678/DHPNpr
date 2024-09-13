@@ -1,0 +1,1 @@
+"Failure to use HTTPS or SFTP URL in Maven artifact upload/download","Non-HTTPS connections can be intercepted by third parties.","error","Downloading or uploading artifacts over insecure protocol (eg. http or ftp) to/from repository http://svn.apache.org/viewvc/jakarta/commons/proper/lang/trunk","/project.xml","51","5","54","18"
